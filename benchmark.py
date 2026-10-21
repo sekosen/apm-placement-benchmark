@@ -4,9 +4,11 @@
 Expects generate_project.py to have produced the project directories
 already (see README), and setup_envs.sh to have produced the two venvs.
 
-Peak RSS is measured via a small wrapper subprocess that reports
-resource.getrusage(RUSAGE_CHILDREN).ru_maxrss for just the apm process it
-ran, so it isn't polluted by earlier runs (Linux only; ru_maxrss is in KiB).
+Each build runs as `python -m apm_cli.entrypoint` from its venv, the same
+code path as the installed `apm` script, so peak memory is the apm process
+itself rather than a Windows launcher. A small wrapper subprocess measures it
+for just that run: ru_maxrss of its child on Linux/macOS, PeakWorkingSetSize
+on Windows.
 """
 
 from __future__ import annotations
@@ -18,30 +20,63 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+VENV_PYTHON = "Scripts/python.exe" if sys.platform == "win32" else "bin/python"
 DEFAULT_BINARIES = {
-    "before": HERE / ".work/before-venv/bin/apm",
-    "after": HERE / ".work/after-venv/bin/apm",
+    "before": HERE / ".work/before-venv" / VENV_PYTHON,
+    "after": HERE / ".work/after-venv" / VENV_PYTHON,
 }
 DEFAULT_PROJECTS = ["proj_small", "proj_1000", "proj_2000"]
 
 WRAPPER_SRC = """
-import json, resource, subprocess, sys, time
+import json, subprocess, sys, time
 start = time.perf_counter()
-subprocess.run(sys.argv[1:], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+proc = subprocess.Popen(sys.argv[1:], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+if proc.wait():
+    sys.exit(proc.returncode)
 elapsed = time.perf_counter() - start
-peak_kb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+if sys.platform == "win32":
+    import ctypes
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
+            (name, ctypes.c_size_t)
+            for name in (
+                "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage",
+                "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage",
+                "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
+            )
+        ]
+
+    counters = Counters(cb=ctypes.sizeof(Counters))
+    # The exited process handle stays open until proc is collected.
+    if not ctypes.windll.psapi.GetProcessMemoryInfo(
+        wintypes.HANDLE(int(proc._handle)), ctypes.byref(counters), counters.cb
+    ):
+        raise ctypes.WinError()
+    peak_kb = counters.PeakWorkingSetSize // 1024
+else:
+    import resource
+
+    peak_kb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+    if sys.platform == "darwin":
+        peak_kb //= 1024  # ru_maxrss is bytes on macOS
 print(json.dumps({"elapsed": elapsed, "peak_kb": peak_kb}))
 """
 
 
 def run_once(binary: Path, cwd: Path) -> tuple[float, int]:
     result = subprocess.run(
-        [sys.executable, "-c", WRAPPER_SRC, str(binary), "compile", "--dry-run", "--no-links", "--target", "claude"],
+        [
+            sys.executable, "-c", WRAPPER_SRC,
+            str(binary), "-m", "apm_cli.entrypoint",
+            "compile", "--dry-run", "--no-links", "--target", "claude",
+        ],
         cwd=cwd,
         capture_output=True,
         text=True,
         check=True,
-        timeout=300,
+        timeout=1800,
     )
     data = json.loads(result.stdout)
     return data["elapsed"], data["peak_kb"]

@@ -22,6 +22,8 @@ stays close to flat after. Peak RSS barely moves either way.
 
 ## Reproducing
 
+Works on Linux, macOS and Windows; on Windows, run `setup_envs.sh` from Git Bash.
+
 ```sh
 python generate_project.py proj_small --target-dirs 1
 python generate_project.py proj_1000 --target-dirs 1000

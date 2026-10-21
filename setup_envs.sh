@@ -9,6 +9,11 @@ REPO_URL="${1:-https://github.com/sekosen/apm.git}"
 BEFORE_REF="${2:-2e2d0683}"
 AFTER_REF="${3:-perf/placement-large-tree-scaling-v3}"
 
+# Windows venvs use Scripts/python.exe instead of bin/python.
+venv_python() {
+    if [ -x "$1/Scripts/python.exe" ]; then echo "$1/Scripts/python.exe"; else echo "$1/bin/python"; fi
+}
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK="$HERE/.work"
 rm -rf "$WORK"
@@ -21,10 +26,10 @@ for pair in "before:$BEFORE_REF" "after:$AFTER_REF"; do
     git clone --quiet "$REPO_URL" "$WORK/$name-src"
     git -C "$WORK/$name-src" checkout --quiet "$ref"
     python -m venv "$WORK/$name-venv"
-    "$WORK/$name-venv/bin/python" -m pip install --quiet -e "$WORK/$name-src"
+    "$(venv_python "$WORK/$name-venv")" -m pip install --quiet -e "$WORK/$name-src"
 done
 
 echo
-echo "Done. Binaries:"
-echo "  before: $WORK/before-venv/bin/apm"
-echo "  after:  $WORK/after-venv/bin/apm"
+echo "Done. Interpreters:"
+echo "  before: $(venv_python "$WORK/before-venv")"
+echo "  after:  $(venv_python "$WORK/after-venv")"
