@@ -5,7 +5,7 @@
 # Usage: ./setup_envs.sh [repo_url] [before_ref] [after_ref]
 set -euo pipefail
 
-REPO_URL="${1:-https://github.com/mukkumayc/apm.git}"
+REPO_URL="${1:-https://github.com/sekosen/apm.git}"
 BEFORE_REF="${2:-2e2d0683}"
 AFTER_REF="${3:-perf/placement-large-tree-scaling-v3}"
 
