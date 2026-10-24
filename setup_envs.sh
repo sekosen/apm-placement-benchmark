@@ -6,7 +6,7 @@
 set -euo pipefail
 
 REPO_URL="${1:-https://github.com/sekosen/apm.git}"
-BEFORE_REF="${2:-2e2d0683}"
+BEFORE_REF="${2:-29200432}"
 AFTER_REF="${3:-perf/placement-large-tree-scaling-v3}"
 
 # Windows venvs use Scripts/python.exe instead of bin/python.
