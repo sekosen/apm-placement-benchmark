@@ -11,9 +11,9 @@ Minimum of several repeats. Memory is peak RSS of the `apm` process:
 | project | directories | before | after | speedup | before MB | after MB |
 |---|---:|---:|---:|---:|---:|---:|
 | `proj_small` | ~6 | 0.25s | 0.25s | 1.0x | 64 | 65 |
-| `proj_1000` | ~1000 | 2.70s | 0.58s | 4.6x | 74 | 73 |
-| `proj_2000` | ~2000 | 8.03s | 0.92s | 8.7x | 84 | 82 |
-| `proj_10000` | ~10000 | 153.92s | 3.76s | 41.0x | 164 | 151 |
+| `proj_1000` | ~1000 | 2.70s | 0.58s | 4.7x | 74 | 72 |
+| `proj_2000` | ~2000 | 8.02s | 0.92s | 8.7x | 84 | 82 |
+| `proj_10000` | ~10000 | 153.99s | 3.70s | 41.6x | 164 | 153 |
 
 Before = latest `main` (`2e2d0683`); after = `perf/placement-large-tree-scaling-v3`.
 
